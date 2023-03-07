@@ -135,7 +135,6 @@ class HotelsController extends AppController {
             
             if($this->Hotel->save($this->request->data)) {
                 $data2 = $this->request->data;
-                $this->Flash->success(__('The hotel has been saved.'));
                 $this->redirect('http://users/users/index?owner_id=' . $data2['Hotel']['owner_id']);
             }
             else {
