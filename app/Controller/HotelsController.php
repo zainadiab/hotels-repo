@@ -17,7 +17,7 @@ class HotelsController extends AppController {
         $this->set('addressList',$addressList);
 
         if ($this->request->is('post')) {
-           // pr($this->request->data); die;
+           
             $address = $this->request->data['Hotel']['address_id'];
             $roomType = $this->request->data['Hotel']['room_type'];
 
@@ -50,7 +50,6 @@ class HotelsController extends AppController {
                 ]
             ));
            
-            // Pass the list of hotels to the view
             $this->set('hotels', $hotels);
         }
 
@@ -77,9 +76,9 @@ class HotelsController extends AppController {
                    ));
                   
                    if($hotels){
-                    $this->autoRender = false; // disable rendering a view
-                    $this->response->type('json'); // set response type to JSON
-                    $this->response->body(json_encode($hotels)); // set response body to JSON-encoded hotels
+                    $this->autoRender = false; 
+                    $this->response->type('json'); 
+                    $this->response->body(json_encode($hotels));
                     return $this->response;
                 }else{
                     return "no_data_found";
@@ -159,15 +158,66 @@ class HotelsController extends AppController {
                     array('Hotel.deleted' => 1),
                     array('Hotel.id' => $data['id'])
                 )){
-                   // $this->Flash->success(__('The hotel has been deleted.'));
                     return $this->redirect('http://users/users/index?owner_id=' . $data['owner']);
                 }
         }
-
-
-        public function reserve(){
-            $this->autoRneder = false;
-            pr($this->request->query); die;
+        
+        public function reserve($room_id = null) {
+            $this->loadModel('Reservation');
+            $this->loadModel('Room');
+            $data = $this->request->query;
+            $room_id = $data['id'];
+            $this->set('room_id',$room_id);
+            if (!$room_id) {
+                $this->Flash->error(__('Invalid room'));
+            }
+        
+            if ($this->request->is('post')) {
+              
+                $data = $this->request->data;
+                $this->Reservation->create();
+                $data['Reservation']['room_id'] = $room_id;
+                if ($this->Reservation->save($data)) {
+                    $this->Room->id = $room_id;
+                    $this->Room->saveField('reserved', 1);
+                    $this->Flash->success(__('The reservation has been saved.'));
+                    return $this->redirect(array('action' => 'index'));
+                } else {
+                    $this->Flash->error(__('The reservation could not be saved. Please, try again.'));
+                }
+            }
+          
+            $room = $this->Room->find('first',array('fields' => ['id'], 'conditions' => ['id' => $room_id], 'recursive' => -1));
+            if (!$room) {
+               return $this->Flash->error(__('Invalid room'));
+            }
+            $this->set('room', $room);
+        
+            $this->render('reserve');
         }
+
+        public function viewReservations($hotel_id = null) {
+
+            $data = $this->request->query;
+            $hotel_id = $data['id'];
+            $this->loadModel('Room');
+            $this->loadModel('Reservation');
+            $hotel = $this->Hotel->find('all', array(
+                'conditions' => array('Hotel.id' => $hotel_id),
+            ));
+            $hotel_name = $hotel[0]['Hotel']['name'];
+            $this->set('hotel_name',$hotel_name);
+            $rooms = $this->Room->find('all', array(
+                'conditions' => array('Room.hotel_id' => $hotel_id, 'Room.reserved' => 1),
+                'recursive' => -1
+            ));
+            $reservations = $this->Reservation->find('all', array(
+                'conditions' => array('Reservation.room_id' => Hash::extract($rooms, '{n}.Room.id')),
+                'recursive' => -1
+            ));
+            $this->set(compact('rooms', 'reservations'));
+        }
+        
+        
        
 }
